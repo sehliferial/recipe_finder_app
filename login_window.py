@@ -178,7 +178,9 @@ class LoginWindow:
             
         try:
             connection, cursor = self.db_manager.connect()
-            self.db_manager.initialize_database()
+            
+            # ✅✅✅ التعديل المهم: استخدم create_tables_if_not_exist بدلاً من initialize_database
+            self.db_manager.create_tables_if_not_exist()
             
             # التحقق من صحة API Key
             api_handler = RecipeAPIHandler(api_key)
@@ -212,13 +214,22 @@ class LoginWindow:
             
         try:
             connection, cursor = self.db_manager.connect()
-            self.db_manager.initialize_database()
+            
+            # ✅✅✅ التعديل المهم: استخدم create_tables_if_not_exist بدلاً من initialize_database
+            self.db_manager.create_tables_if_not_exist()
             
             # التحقق من بيانات الدخول
             user_data = self.db_manager.authenticate_user(username, password)
             
             if user_data:
-                messagebox.showinfo("Success", f"👋 Welcome back, {username}!")
+                # التحقق من عدد المفضلات للمستخدم
+                favorites_count = self.db_manager.get_favorites_count(user_data["user_id"])
+                
+                message = f"👋 Welcome back, {username}!"
+                if favorites_count > 0:
+                    message += f"\n⭐ You have {favorites_count} favorite recipes saved."
+                
+                messagebox.showinfo("Success", message)
                 self.current_user = {"user_id": user_data["user_id"], 
                                    "username": username, 
                                    "api_key": user_data["api_key"]}
@@ -254,30 +265,3 @@ class LoginWindow:
         """معالجة إغلاق نافذة التطبيق"""
         app_window.destroy()
         self.root.deiconify()
-
-# دالة اختبارية
-def test_login_window():
-    """اختبار نافذة تسجيل الدخول"""
-    print("Testing Login Window...")
-    
-    # اختبار الوظائف الأساسية
-    root = Tk()
-    app = LoginWindow(root)
-    
-    # اختبار التحقق من المدخلات
-    test_cases = [
-        ("", "pass123", "apikey123", False, "empty username"),
-        ("user", "pass", "apikey123", False, "short password"),
-        ("user123", "pass123", "short", False, "short api key"),
-        ("validuser", "validpass123", "validapikey12345", True, "valid inputs"),
-    ]
-    
-    for username, password, api_key, expected, description in test_cases:
-        is_valid, message = app.validate_inputs(username, password, api_key, require_api_key=True)
-        print(f"{description}: {is_valid == expected} (expected {expected}, got {is_valid})")
-    
-    root.destroy()
-
-if __name__ == "__main__":
-    # يمكنك تشغيل هذا لاختبار الملف بمفرده
-    test_login_window()

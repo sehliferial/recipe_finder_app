@@ -23,14 +23,9 @@ class DatabaseManager:
         if self.connection:
             self.connection.close()
             
-    def initialize_database(self):
-        """تهيئة الجداول في قاعدة البيانات"""
-        # حذف الجداول القديمة أولاً
-        self.cursor.execute("DROP TABLE IF EXISTS favorites")
-        self.cursor.execute("DROP TABLE IF EXISTS view_history")
-        self.cursor.execute("DROP TABLE IF EXISTS search_history")
-        
-        # جدول المستخدمين (يبقى كما هو)
+    def create_tables_if_not_exist(self):
+        """إنشاء الجداول إذا لم تكن موجودة (بدون حذف القديمة)"""
+        # جدول المستخدمين
         create_users_table = '''
         CREATE TABLE IF NOT EXISTS users(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +48,7 @@ class DatabaseManager:
         )
         '''
         
-        # جدول التاريخ - مخزن لتاريخ المشاهدات
+        # جدول المشاهدة
         create_view_history_table = '''
         CREATE TABLE IF NOT EXISTS view_history(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +61,7 @@ class DatabaseManager:
         )
         '''
         
-        # جدول الوصفات المفضلة
+        # جدول المفضلة
         create_favorites_table = '''
         CREATE TABLE IF NOT EXISTS favorites(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,12 +77,47 @@ class DatabaseManager:
         )
         '''
         
+        # تنفيذ إنشاء الجداول
         self.cursor.execute(create_users_table)
         self.cursor.execute(create_search_history_table)
         self.cursor.execute(create_view_history_table)
         self.cursor.execute(create_favorites_table)
         self.connection.commit()
         
+        print("✅ Tables checked/created without deleting existing data")
+        
+    def initialize_database(self):
+        """تهيئة الجداول في قاعدة البيانات (تحذف القديمة) - استخدام بحذر!"""
+        # حذف الجداول القديمة أولاً
+        self.cursor.execute("DROP TABLE IF EXISTS favorites")
+        self.cursor.execute("DROP TABLE IF EXISTS view_history")
+        self.cursor.execute("DROP TABLE IF EXISTS search_history")
+        
+        # إنشاء الجداول الجديدة
+        self.create_tables_if_not_exist()
+        
+    def check_database_status(self):
+        """فحص حالة قاعدة البيانات"""
+        try:
+            # التحقق من وجود الجداول
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = self.cursor.fetchall()
+            print("📊 Database tables:", [table[0] for table in tables])
+            
+            # التحقق من عدد الوصفات المفضلة
+            self.cursor.execute("SELECT COUNT(*) FROM favorites")
+            count = self.cursor.fetchone()[0]
+            print(f"⭐ Total favorites count: {count}")
+            
+            # عرض أمثلة
+            if count > 0:
+                self.cursor.execute("SELECT user_id, recipe_title FROM favorites LIMIT 5")
+                favorites = self.cursor.fetchall()
+                print(f"Sample favorites: {[f[1] for f in favorites]}")
+                
+        except Exception as e:
+            print(f"Database check error: {e}")
+            
     def hash_password(self, password):
         """تجزئة كلمة المرور"""
         return hashlib.sha256(password.encode()).hexdigest()
@@ -283,3 +313,10 @@ class DatabaseManager:
         query = "SELECT 1 FROM favorites WHERE user_id = ? AND recipe_id = ?"
         self.cursor.execute(query, (user_id, recipe_id))
         return self.cursor.fetchone() is not None
+        
+    def get_favorites_count(self, user_id):
+        """الحصول على عدد الوصفات المفضلة للمستخدم"""
+        query = "SELECT COUNT(*) FROM favorites WHERE user_id = ?"
+        self.cursor.execute(query, (user_id,))
+        result = self.cursor.fetchone()
+        return result[0] if result else 0

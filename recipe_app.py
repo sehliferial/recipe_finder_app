@@ -68,6 +68,15 @@ class RecipeApp:
         menu_frame = Frame(header_frame, bg='#5D7B9D')
         menu_frame.pack(side=RIGHT, padx=20, pady=20)
         
+        # ✅ أضف زر Debug للفحص
+        debug_btn = Button(menu_frame,
+                         text="🔧 Debug DB",
+                         font=('Arial', 8, 'bold'),
+                         bg='#34495E',
+                         fg='white',
+                         command=self.debug_database)
+        debug_btn.pack(side=LEFT, padx=2)
+        
         history_btn = Button(menu_frame,
                            text="📜 View History",
                            font=('Arial', 10, 'bold'),
@@ -91,7 +100,83 @@ class RecipeApp:
                           fg='white',
                           command=self.logout)
         logout_btn.pack(side=LEFT, padx=5)
-        
+    
+    def debug_database(self):
+        """فحص قاعدة البيانات"""
+        try:
+            # التحقق من الجداول
+            self.db_manager.cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = self.db_manager.cursor.fetchall()
+            
+            # عرض المعلومات
+            info = "📊 Database Debug Info:\n\n"
+            info += f"User ID: {self.user_data['user_id']}\n"
+            info += f"Username: {self.user_data['username']}\n\n"
+            info += "📋 Tables in database:\n"
+            
+            for table in tables:
+                table_name = table[0]
+                info += f"\n• {table_name}\n"
+                
+                # عدّ الصفوف في كل جدول
+                if table_name != 'sqlite_sequence':
+                    self.db_manager.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                    count = self.db_manager.cursor.fetchone()[0]
+                    info += f"  📈 Rows: {count}\n"
+                    
+                    # عرض بعض البيانات من favorites لهذا المستخدم
+                    if table_name == 'favorites':
+                        self.db_manager.cursor.execute(
+                            f"SELECT recipe_id, recipe_title, saved_date FROM {table_name} WHERE user_id = ? ORDER BY saved_date DESC LIMIT 5", 
+                            (self.user_data['user_id'],)
+                        )
+                        favs = self.db_manager.cursor.fetchall()
+                        if favs:
+                            info += "  💾 User's favorites:\n"
+                            for fav in favs:
+                                info += f"    • {fav[1]} (ID: {fav[0]}) - {fav[2]}\n"
+                        else:
+                            info += "  ❌ No favorites for this user\n"
+                    
+                    # عرض بيانات search_history لهذا المستخدم
+                    elif table_name == 'search_history':
+                        self.db_manager.cursor.execute(
+                            f"SELECT ingredients, search_date FROM {table_name} WHERE user_id = ? ORDER BY search_date DESC LIMIT 3", 
+                            (self.user_data['user_id'],)
+                        )
+                        searches = self.db_manager.cursor.fetchall()
+                        if searches:
+                            info += "  🔍 Recent searches:\n"
+                            for search in searches:
+                                info += f"    • {search[0]} - {search[1]}\n"
+                    
+                    # عرض بيانات view_history لهذا المستخدم
+                    elif table_name == 'view_history':
+                        self.db_manager.cursor.execute(
+                            f"SELECT recipe_title, viewed_at FROM {table_name} WHERE user_id = ? ORDER BY viewed_at DESC LIMIT 3", 
+                            (self.user_data['user_id'],)
+                        )
+                        views = self.db_manager.cursor.fetchall()
+                        if views:
+                            info += "  👁️ Recent views:\n"
+                            for view in views:
+                                info += f"    • {view[0]} - {view[1]}\n"
+            
+            # التحقق من وجود المستخدم
+            self.db_manager.cursor.execute("SELECT id, user_name, created_at FROM users WHERE id = ?", 
+                                         (self.user_data['user_id'],))
+            user_info = self.db_manager.cursor.fetchone()
+            if user_info:
+                info += f"\n👤 User info:\n"
+                info += f"  • ID: {user_info[0]}\n"
+                info += f"  • Username: {user_info[1]}\n"
+                info += f"  • Created: {user_info[2]}\n"
+            
+            messagebox.showinfo("Database Debug", info)
+            
+        except Exception as e:
+            messagebox.showerror("Debug Error", f"Error checking database:\n{str(e)}")
+    
     def create_search_frame(self):
         """إنشاء إطار البحث"""
         search_frame = Frame(self.window, bg='#F8FAFF', padx=20, pady=20)

@@ -31,15 +31,15 @@ class RecipeAPIHandler:
             "number": number,
             "apiKey": self.api_key,
             "ranking": 2,
-            "ignorePantry": True
+            "ignorePantry": False
         }
-        
+    
+          # جلب تفاصيل كاملة لكل وصفة
         try:
             response = requests.get(url, params=params, timeout=15)
             response.raise_for_status()
             recipes = response.json()
             
-            # جلب تفاصيل كاملة لكل وصفة
             detailed_recipes = []
             for recipe in recipes[:5]:  # نحدد 5 وصفات فقط لتجنب طلبات كثيرة
                 recipe_id = recipe.get('id')
@@ -54,14 +54,14 @@ class RecipeAPIHandler:
             print(f"API Error: {e}")
             return []
             
+            """الحصول على تفاصيل كاملة للوصفة""" 
     def get_recipe_details(self, recipe_id: int) -> Dict[str, Any]:
-        """الحصول على تفاصيل كاملة للوصفة"""
         url = f"{self.base_url}/recipes/{recipe_id}/information"
         params = {
             "apiKey": self.api_key,
-            "includeNutrition": False
+            "includeNutrition": True
         }
-        
+        #   تنسيق بيانات الوصفة     
         try:
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
@@ -93,9 +93,9 @@ class RecipeAPIHandler:
         except Exception as e:
             print(f"Error fetching recipe details {recipe_id}: {e}")
             return {}
-    
+        
+        """تنظيف النص من HTML tags"""    
     def _clean_html(self, html_text: str) -> str:
-        """تنظيف النص من HTML tags"""
         if not html_text:
             return ""
         

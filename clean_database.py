@@ -1,15 +1,42 @@
 import os
 import sqlite3
+import shutil
+from datetime import datetime
+
+def backup_before_clean():
+    """إنشاء نسخة احتياطية قبل التنظيف"""
+    if os.path.exists('recipes.db'):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f'recipes_backup_before_clean_{timestamp}.db'
+        shutil.copy2('recipes.db', backup_name)
+        print(f"✅ Backup created before cleaning: {backup_name}")
+        return backup_name
+    return None
 
 def recreate_database():
-    """إعادة إنشاء قاعدة البيانات"""
+    """إعادة إنشاء قاعدة البيانات (تحذف كل البيانات!)"""
+    
+    print("=" * 50)
+    print("⚠️ WARNING: This will delete ALL existing data!")
+    print("=" * 50)
+    
+    # طلب تأكيد
+    confirmation = input("Are you sure? Type 'YES' to continue: ")
+    if confirmation != 'YES':
+        print("❌ Operation cancelled")
+        return
+    
+    # نسخة احتياطية
+    backup_before_clean()
+    
     # حذف الملفات القديمة
     if os.path.exists('recipes.db'):
         os.remove('recipes.db')
+        print("✅ Old database deleted")
+    
     if os.path.exists('recipes.db-journal'):
         os.remove('recipes.db-journal')
-    
-    print("✅ Old database deleted")
+        print("✅ Journal file deleted")
     
     # إنشاء قاعدة بيانات جديدة
     conn = sqlite3.connect('recipes.db')
@@ -67,6 +94,9 @@ def recreate_database():
     conn.commit()
     conn.close()
     print("✅ New database created with updated schema")
+    print("=" * 50)
+    print("📊 New empty database is ready")
+    print("=" * 50)
 
 if __name__ == "__main__":
     recreate_database()
